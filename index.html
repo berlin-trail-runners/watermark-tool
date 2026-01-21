@@ -242,6 +242,10 @@
 
         // Load logo image
         logoImage = new Image();
+        logoImage.onload = function() {
+            // Logo is loaded and ready to use
+            console.log('Logo loaded successfully');
+        };
         logoImage.src = logoBase64;
 
         // Event listeners
@@ -305,17 +309,19 @@
                 targetSize
             );
 
-            // Draw logo watermark
-            const logoWidth = 220;
-            const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
-            const logoPadding = 20;
-            ctx.drawImage(
-                logoImage,
-                targetSize - logoWidth - logoPadding,
-                logoPadding,
-                logoWidth,
-                logoHeight
-            );
+            // Draw logo watermark (only if loaded)
+            if (logoImage && logoImage.complete && logoImage.width > 0) {
+                const logoWidth = 220;
+                const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
+                const logoPadding = 20;
+                ctx.drawImage(
+                    logoImage,
+                    targetSize - logoWidth - logoPadding,
+                    logoPadding,
+                    logoWidth,
+                    logoHeight
+                );
+            }
 
             // Draw text watermark background
             const barHeight = 150;
