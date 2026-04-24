@@ -273,6 +273,28 @@
             reader.readAsDataURL(file);
         }
 
+        // Helper function to wrap text into multiple lines
+        function wrapText(text, maxWidth, font) {
+            ctx.font = font;
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const testLine = currentLine + ' ' + words[i];
+                const testWidth = ctx.measureText(testLine).width;
+
+                if (testWidth > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
         function updatePreview() {
             if (!originalImage) return;
 
@@ -313,44 +335,67 @@
                 targetSize
             );
 
-            // Draw text watermark background
-            const barHeight = 150;
-            const barY = targetSize - barHeight;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(0, barY, targetSize, barHeight);
-
-            // Measure and scale text if needed
+            // Text configuration
             const textOffsetX = targetSize * 0.12;
-            const textPadding = 60;
+            const textPadding = 100; // Increased padding for Instagram preview safety
             const maxTextWidth = targetSize - textOffsetX - textPadding;
 
-            // Draw event name (with auto-scaling)
+            // Try to scale event name down first (hybrid approach)
             ctx.font = '600 54px Arial, sans-serif';
-            let fontSize = 54;
+            let eventNameFontSize = 54;
             let textWidth = ctx.measureText(eventName).width;
+            const minFontSize = 32; // Higher minimum to maintain readability before wrapping
 
-            while (textWidth > maxTextWidth && fontSize > 24) {
-                fontSize -= 2;
-                ctx.font = `600 ${fontSize}px Arial, sans-serif`;
+            while (textWidth > maxTextWidth && eventNameFontSize > minFontSize) {
+                eventNameFontSize -= 2;
+                ctx.font = `600 ${eventNameFontSize}px Arial, sans-serif`;
                 textWidth = ctx.measureText(eventName).width;
             }
 
-            ctx.fillStyle = 'white';
-            ctx.fillText(eventName, textOffsetX, barY + 75);
-
-            // Draw event date
-            ctx.font = '400 40px Arial, sans-serif';
-            fontSize = 40;
-            textWidth = ctx.measureText(eventDate).width;
-
-            while (textWidth > maxTextWidth && fontSize > 20) {
-                fontSize -= 2;
-                ctx.font = `400 ${fontSize}px Arial, sans-serif`;
-                textWidth = ctx.measureText(eventDate).width;
+            // If still too wide, wrap to multiple lines
+            let eventNameLines = [eventName];
+            if (textWidth > maxTextWidth) {
+                eventNameLines = wrapText(eventName, maxTextWidth, `600 ${eventNameFontSize}px Arial, sans-serif`);
             }
 
+            // Calculate dynamic bar height based on number of lines
+            const lineHeight = eventNameFontSize * 1.2;
+            const baseBarHeight = 150;
+            const extraLineHeight = 50;
+            const barHeight = eventNameLines.length === 1
+                ? baseBarHeight
+                : baseBarHeight + (extraLineHeight * (eventNameLines.length - 1));
+
+            const barY = targetSize - barHeight;
+
+            // Draw text watermark background with dynamic height
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(0, barY, targetSize, barHeight);
+
+            // Draw event name (single or multiple lines)
+            ctx.font = `600 ${eventNameFontSize}px Arial, sans-serif`;
+            ctx.fillStyle = 'white';
+
+            const eventNameStartY = eventNameLines.length === 1
+                ? barY + 75
+                : barY + 50;
+
+            eventNameLines.forEach((line, index) => {
+                ctx.fillText(line, textOffsetX, eventNameStartY + (index * lineHeight));
+            });
+
+            // Calculate date position based on event name lines
+            const dateYOffset = eventNameLines.length === 1
+                ? 125
+                : (eventNameLines.length * lineHeight) + 70;
+
+            // Draw event date with proportional scaling to match event name
+            // Scale the date font proportionally to the event name scaling
+            const eventDateFontSize = Math.round((eventNameFontSize / 54) * 40);
+
+            ctx.font = `400 ${eventDateFontSize}px Arial, sans-serif`;
             ctx.fillStyle = '#cccccc';
-            ctx.fillText(eventDate, textOffsetX, barY + 125);
+            ctx.fillText(eventDate, textOffsetX, barY + dateYOffset);
 
             // Draw logo watermark on top (only if loaded)
             if (logoImage && logoImage.complete && logoImage.width > 0) {
